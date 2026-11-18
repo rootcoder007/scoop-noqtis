@@ -1,0 +1,45 @@
+# Installs the manifest of this bucket with Scoop on a clean Windows runner
+# and runs the program: on every change of the manifest (a release of noqtis
+# pushes one), once a week, and by hand. Until the first release there is
+# no manifest and the job says so.
+name: tests
+
+on:
+  push:
+    branches: [main]
+    paths: ["bucket/**", ".github/workflows/tests.yml"]
+  pull_request:
+    paths: ["bucket/**", ".github/workflows/tests.yml"]
+  schedule:
+    - cron: "37 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  manifest:
+    name: noqtis (windows)
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: scoop install, then run it
+        shell: pwsh
+        run: |
+          if (-not (Test-Path bucket/noqtis.json)) {
+            Write-Output "::notice::no bucket/noqtis.json yet: the first release writes it"
+            exit 0
+          }
+          Get-Content bucket/noqtis.json -Raw | ConvertFrom-Json | Out-Null
+          Invoke-RestMethod get.scoop.sh -OutFile scoop.ps1
+          ./scoop.ps1 -RunAsAdmin
+          $env:PATH = "$HOME\scoop\shims;$env:PATH"
+          scoop install ./bucket/noqtis.json
+          if ($LASTEXITCODE -ne 0) { throw 'scoop install failed' }
+          $o = & "$HOME\scoop\shims\noqtis.exe" --version
+          $o
+          if ($LASTEXITCODE -ne 0) { throw 'noqtis did not run' }
+          if (-not ("$o" -match 'noqtis')) { throw 'unexpected output' }
