@@ -37,7 +37,7 @@ jobs:
           Invoke-RestMethod get.scoop.sh -OutFile scoop.ps1
           ./scoop.ps1 -RunAsAdmin
           $env:PATH = "$HOME\scoop\shims;$env:PATH"
-          scoop install ./bucket/noqtis.json
+          scoop install (Resolve-Path bucket/noqtis.json).Path
           if ($LASTEXITCODE -ne 0) { throw 'scoop install failed' }
           $o = & "$HOME\scoop\shims\noqtis.exe" --version
           $o
